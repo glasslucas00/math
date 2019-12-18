@@ -1,0 +1,189 @@
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+import random
+import math
+def length(a, b):
+    return math.sqrt((a[0]- b[0]) ** 2 + (a[1] - b[1]) ** 2)
+RT=20
+RW=30
+
+glocation =[]
+clocation=[]
+glist=[]
+clist=[]
+rlist=[]
+G = nx.Graph()
+
+for i in range(3):
+    glist.append(i)
+    glocation.append([random.randint(0, 100),random.randint(0, 100)])
+    G.add_node(i, name='g' + str(i), cap=150,location=glocation[i])
+for i in range(len(glocation),len(glocation)+100):
+    rlist.append(i)
+    glocation.append([random.randint(0, 100),random.randint(0, 100)])
+    G.add_node(i, name='r' + str(i), cap=150,location=glocation[i])
+
+for j in range(len(glocation),len(glocation)+100):
+    clist.append(j)
+    glocation.append([random.randint(0, 100), random.randint(0, 100)])
+    G.add_node(j, name='c' + str(j), need=20, location=glocation[j])
+print(G.nodes.data())
+
+vnode= np.array(glocation)
+
+npos = dict(zip(G.nodes, vnode))  # 获取节点与坐标之间的映射关系，用字典表示
+
+
+nlabels = dict(zip(G.nodes, G.nodes))
+# nx.draw(G,npos)
+# nx.draw_networkx_labels(G, npos, nlabels,font_size=8)
+# nx.draw_networkx_nodes(G, npos, node_size=20000,nodelist=glist,node_shape='o',alpha=0.6,node_color="#6CB6FF")
+# nx.draw_networkx_nodes(G, npos, node_size=20000,nodelist=rlist,node_shape='o',alpha=0.2,node_color="b")
+# nx.draw_networkx_nodes(G, npos, node_size=100,nodelist=clist, node_color="r")
+
+
+reslist=[]
+klist=clist
+
+for i in glist:#将网关节点包含的用户点删除
+    for j in clist:
+        print(G.nodes[i]["location"], G.nodes[j]["location"])
+        uu=length(G.nodes[i]["location"], G.nodes[j]["location"])
+        print(uu)
+        if uu <= RT:
+            if G.nodes[i]["cap"] > G.nodes[j]["need"]:
+                G.nodes[i]["cap"]=G.nodes[i]["cap"]- G.nodes[j]["need"]
+                klist.remove(j)
+                #G.remove_node(j)
+        else:
+            reslist.append(j)
+clist=klist
+print("res",clist)
+print(G.nodes.data())
+plt.figure(1)
+nx.draw_networkx_labels(G, npos, nlabels, font_size=8)
+nx.draw_networkx_nodes(G, npos, node_size=10000, nodelist=glist,label="cap", node_shape='o', alpha=0.6, node_color="#6CB6FF")
+nx.draw_networkx_nodes(G, npos, node_size=10000, nodelist=rlist, node_shape='o', alpha=0.2, node_color="b")
+nx.draw_networkx_nodes(G, npos, node_size=100, nodelist=clist, node_color="r")
+#nx.draw_networkx_edges(G,npos,edgelist)
+plt.xlim(0,100)
+plt.ylim(0,100)
+plt.show()
+plt.close("all")
+ddlist=[]
+for i in clist:
+    ddlist.append(i)
+blist=[]
+for x in range(0,200):################
+    for i in rlist:#求满足最多需求的点
+        for j in clist:
+            uu = length(G.nodes[i]["location"], G.nodes[j]["location"])
+            if uu <= RT:
+                G.nodes[i]["cap"] = G.nodes[i]["cap"] - G.nodes[j]["need"]
+
+    mind=100000
+    for i in rlist:
+        if mind>G.nodes[i]["cap"]:
+            mind=G.nodes[i]["cap"]
+            p=i
+    for i in rlist:
+        G.nodes[i]["cap"] = 150
+    blist.append(p)
+    rlist.remove(p)
+    klist=clist
+    for i in blist:#将路由节点包含的用户点删除
+        for j in clist:
+            uu = length(G.nodes[i]["location"], G.nodes[j]["location"])
+            if uu <= RT:
+                if G.nodes[i]["cap"]>G.nodes[j]["need"]:
+                    klist.remove(j)
+                    G.nodes[i]["cap"] = G.nodes[i]["cap"] - G.nodes[j]["need"]
+    clist=klist
+    if len(clist)==0:
+        print("over")
+        break
+
+    print("res", clist)
+    print("rlist", blist)
+wlist=blist+glist
+edgelist = []
+weightdata=[]
+for i in wlist:
+    for j in wlist:
+        if i!=j:
+            uu = length(G.nodes[i]["location"], G.nodes[j]["location"])
+            if(uu<RW):
+                G.add_edge(j, i,weight=uu)
+                edgelist.append([j, i])
+                weightdata.append((i,j,uu))
+
+plt.figure(2)
+print(G.nodes.data())
+nx.draw_networkx_labels(G, npos, nlabels, font_size=8)
+nx.draw_networkx_nodes(G, npos, node_size=10000, nodelist=glist, label="cap", node_shape='o', alpha=0.6,node_color="#6CB6FF")
+nx.draw_networkx_nodes(G, npos, node_size=10000, nodelist=blist, node_shape='o', alpha=0.2, node_color="b")
+nx.draw_networkx_nodes(G, npos, node_size=100, nodelist=ddlist, node_color="r")
+nx.draw_networkx_edges(G,npos,edgelist)
+print("dd",ddlist)
+plt.xlim(0, 100)
+plt.ylim(0, 100)
+plt.show()
+#Prim算法与Dijkstra的最短路径算法类似，它采用贪心策略。算法开始先把图中权值最小的边添加到树T中，然后不断把权值最小的边E（E的一个端点在T中，另一个在G-T中）。当没有符合条件的E时算法结束，此时T就是G的一个最小生成树。
+
+
+def prim(G, s):
+    dist = {}   # dist记录到节点的最小距离
+    parent = {} # parent记录最小生成树的双亲表
+    Q = list(G.nodes()) # Q包含所有未被生成树覆盖的节点
+    MAXDIST = 9999.99    # MAXDIST表示正无穷，即两节点不邻接
+
+    # 初始化数据
+    # 所有节点的最小距离设为MAXDIST，父节点设为None
+    for v in G.nodes():
+        dist[v] = MAXDIST
+        parent[v] = None
+    # 到开始节点s的距离设为0
+    dist[s] = 0
+
+    # 不断从Q中取出“最近”的节点加入最小生成树
+    # 当Q为空时停止循环，算法结束
+    while Q:
+        # 取出“最近”的节点u，把u加入最小生成树
+        u = Q[0]
+        for v in Q:
+            if (dist[v] < dist[u]):
+                u = v
+        Q.remove(u)
+
+        # 更新u的邻接节点的最小距离
+        for v in G.adj[u]:
+            if (v in Q) and (G[u][v]['weight'] < dist[v]):
+                parent[v] = u
+                dist[v] = G[u][v]['weight']
+    # 算法结束，以双亲表的形式返回最小生成树
+    return parent
+
+def draw(g):
+    pos = nx.spring_layout(g)
+    nx.draw(g, pos, \
+            arrows=True, \
+            with_labels=True, \
+            nodelist=g.nodes(), \
+            style='dashed', \
+            edge_color='b', \
+            width=2, \
+            node_color='y', \
+            alpha=0.5)
+    plt.show()
+
+g = nx.Graph()
+g.add_weighted_edges_from(weightdata)
+tree = prim(g, 1)
+
+mtg = nx.Graph()
+mtg.add_edges_from(tree.items())
+mtg.remove_node(None)
+draw(mtg)
+plt.savefig("degree.png")
+plt.show()
